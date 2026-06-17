@@ -1,0 +1,10 @@
+name: entorno_ia_cancer_mama
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - scikit-learn
