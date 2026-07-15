@@ -1,0 +1,17 @@
+name: env_ia
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - jupyter
+  - ipykernel
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - pillow
+  - scikit-learn
+  - pip:
+    - tensorflow>=2.10.0
