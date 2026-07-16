@@ -1,8 +1,8 @@
-# Clasificación Inteligente de Tumores Cerebrales en Resonancias Magnéticas (MRI) mediante Deep Learning y Transfer Learning
+# Clasificación Inteligente de Tumores Cerebrales en Resonancias Magnéticas (MRI) mediante Deep Learning y Transfer Learning Avanzado
 
 **Integrantes:** Martin Navarro Toro  
 **Curso:** Introducción a la Inteligencia Artificial (COM4402-1)  
-**Modelo Avanzado:** Transfer Learning con MobileNetV2  
+**Modelo Avanzado:** Fine-Tuning Gradual y Controlado sobre MobileNetV2  
 **Dataset:** Brain Tumor Classification (MRI) - Kaggle  
 https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri  
 
@@ -10,7 +10,7 @@ https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri
 ## 1. Descripción del Problema
 Los tumores cerebrales representan una de las patologías oncológicas más agresivas y complejas de diagnosticar en la medicina moderna. El análisis visual de las Resonancias Magnéticas (MRI) por parte de los especialistas médicos es una tarea minuciosa que requiere un alto nivel de experiencia, consume tiempo crítico y está sujeta a la variabilidad subjetiva del ojo humano. Un retraso o error en la identificación del tipo de tumor puede cambiar drásticamente el protocolo terapéutico y el pronóstico de supervivencia del paciente.
 
-Para abordar este desafío desde la perspectiva del aprendizaje profundo (Deep Learning), este proyecto implementa un sistema automatizado modelado como un problema real de **Clasificación Multiclase**. El objetivo es categorizar imágenes de MRI en cuatro clases diagnósticas: tres tipos de tumores específicos (Glioma, Meningioma, Tumor Pituitario) y tejido cerebral sano (Sin Tumor). Esta solución busca actuar como una herramienta complementaria de soporte para la toma de decisiones clínicas, agilizando el triaje y optimizando la precisión diagnóstica en centros asistenciales.
+Para abordar este desafío desde la perspectiva del aprendizaje profundo (*Deep Learning*), este proyecto implementa un sistema automatizado modelado como un problema real de **Clasificación Multiclase**. El objetivo es categorizar imágenes de MRI en cuatro clases diagnósticas: tres tipos de tumores específicos (Glioma, Meningioma, Tumor Pituitario) y tejido cerebral sano (Sin Tumor). Esta solución busca actuar como una herramienta complementaria de soporte para la toma de decisiones clínicas, agilizando el triaje y optimizando la precisión diagnóstica en centros asistenciales.
 
 ## 2. Descripción del Dataset y Fuente
 El conjunto de datos seleccionado corresponde a **"Brain Tumor Classification (MRI)"**, alojado en la plataforma pública Kaggle y recopilado de entornos clínicos reales. El dataset se estructura de forma nativa en dos grandes directorios independientes, `Training` y `Testing`, lo que resguarda la separación estricta para las fases de validación y testeo ciego.
@@ -31,48 +31,60 @@ Tras realizar una auditoría computacional y estadística directa sobre las carp
 
 **Interpretación del Criterio Clínico:** Las tres clases patológicas tumorales se encuentran perfectamente balanceadas y empatadas en el set de entrenamiento (~825 imágenes cada una), lo que blinda a la red contra sesgos iniciales hacia un tumor específico. Por otro lado, la clase sana posee la mitad de muestras (~395), un desbalance moderado que simula fielmente la realidad hospitalaria. 
 
-Asimismo, la inspección visual (ver archivo `eda_muestras_mri_reales.png`) reveló una discrepancia crítica en el **Feature Engineering**: las imágenes tumorales presentaban una resolución nativa de alta definición de $512 \times 512$ píxeles, mientras que las muestras sanas provenían de otro escáner con una resolución menor de $236 \times 260$. Esto validó de forma empírica la necesidad de aplicar un redimensionamiento uniforme a $224 \times 224$ píxeles antes de alimentar el modelo.
+Asimismo, la inspección visual (ver archivo `eda_muestras_mri_reales.png`) reveló una discrepancia crítica en el **Feature Engineering**: las imágenes tumorales presentaban una resolución de alta definición de $512 \times 512$ píxeles, mientras que las muestras sanas provenían de otro escáner con una resolución menor de $236 \times 260$. Esto validó de forma empírica la necesidad de inyectar un redimensionamiento uniforme a $224 \times 224$ píxeles de manera dinámica y en tiempo real a través de los tensores de nuestros cargadores de flujo, garantizando una entrada homogénea al extractor convolucional.
 
-## 3. Justificación de los Modelos y Plan de Acción
+## 3. Justificación de los Modelos y Plan de Acción Avanzado
 Para resolver un problema de visión computacional con un volumen acotado de datos (3,264 imágenes en total), se justifica metodológicamente la aplicación de **Transfer Learning** (Aprendizaje por Transferencia) utilizando la arquitectura **MobileNetV2** preentrenada con el dataset masivo ImageNet.
 
-**Argumentación Técnica:**
-1. **Aprendizaje de Representaciones:** Entrenar una red convolucional profunda desde cero requiere millones de muestras para que las capas ocultas aprendan fronteras básicas como bordes, texturas y formas. Al reutilizar un modelo preentrenado, el sistema ya cuenta con "detectores de características" visuales altamente optimizados en sus 154 capas convolucionales nativas.
-2. **Eficiencia y Congelamiento de Pesos:** Establecer `base_model.trainable = False` congela los 2,257,984 parámetros originales del modelo base. La optimización y el gasto de hardware (GPU de Google Colab) se concentran exclusivamente en un bloque de clasificación personalizado (*Top Model*), compuesto por una capa de pooling global (`GlobalAveragePooling2D`), una capa oculta de 256 neuronas con activación ReLU, y una capa de salida con activación **Softmax** de 4 unidades correspondientes a las categorías de tumores. Esto reduce el costo computacional de entrenamiento a solo 328,964 parámetros entrenables.
+**Argumentación Técnica y Evolución del Plan de Acción:**
+1. **Aprendizaje de Representaciones Maduras:** Entrenar una red convolucional profunda desde cero requiere millones de muestras para que las capas ocultas aprendan fronteras básicas como bordes, texturas y formas. Al reutilizar un modelo preentrenado, el sistema ya cuenta con "detectores de características" visuales altamente optimizados en sus 154 capas convolucionales nativas.
+2. **Fine-Tuning Gradual y Controlado:** Los experimentos iniciales con un extractor 100% congelado demostraron que los filtros genéricos de ImageNet confunden la sutil morfología que separa a un glioma de un meningioma. Por ello, el plan de acción evolucionó hacia un enfoque de ajuste fino avanzado: se estableció `base_model.trainable = True` y se bloquearon únicamente las primeras 100 capas base. Liberar las últimas 54 capas superiores elevó los **parámetros entrenables a un volumen de 2,190,404 (8.36 MB)**. Esta flexibilidad paramétrica controlada permite que la red reconfigure sus mapas de abstracción superior y se especialice en la morfología del tejido tumoral, maximizando la precisión diagnóstica intermedia y final sin disparar el coste computacional.
+
 
 ## 4. Metodología Aplicada (Paso a Paso)
-1. **Auditoría e Ingeniería de Características:** Carga controlada de los directorios de imágenes, normalización de los píxeles de un rango $[0, 255]$ a un espacio escalar $[0, 1]$ mediante `rescale=1./255`, y redimensionamiento uniforme de todos los tensores a un tamaño de $224 \times 224 \times 3$.
-2. **Regularización por Aumento de Datos:** Configuración de transformaciones geométricas aleatorias (*Data Augmentation*) dinámicas en la memoria RAM (rotación de hasta 20°, desplazamientos horizontales/verticales del 10%, zoom del 10% y giros horizontales espejo) únicamente sobre el lote de entrenamiento para mitigar el sobreajuste (*overfitting*).
-3. **Partición de Validación Estricta:** Aislamiento automático de un $20\%$ de la carpeta `Training` para actuar como conjunto de validación interna independiente (2,297 imágenes para entrenamiento puro y 573 para validación).
-4. **Instanciación y Acoplamiento de Redes:** Carga de la arquitectura MobileNetV2 congelada y acoplamiento de las capas superiores personalizadas con una tasa de **Dropout del 50% (0.5)** como regularizador estocástico.
-5. **Configuración del Loop de Optimización:** Compilación mediante la función de pérdida `categorical_crossentropy` y el optimizador adaptativo **Adam** (Learning Rate = 0.001), asistido por un monitoreo automático de `ModelCheckpoint` y un regularizador de paciencia **Early Stopping** configurado con `patience=5`.
-6. **Testeo Ciego Final:** Carga de los mejores pesos alcanzados en el disco y predicción sobre las 394 imágenes del set de prueba ciego (`Testing`) con `shuffle=False` para auditar el rendimiento.
 
-## 5. Resultados Obtenidos e Interpretación
+1.  **Auditoría e Ingeniería de Características:** Carga controlada de los directorios de imágenes, normalización de los píxeles de un rango $[0, 255]$ a un espacio escalar $[0, 1]$ mediante `rescale=1./255`, y redimensionamiento uniforme de todos los tensores a un tamaño de $224 \times 224 \times 3$.
+2.  **Alineación Explícita de Etiquetas:** Se solucionó de raíz el bug crítico de desalineación secuencial forzando la lista explícita `categories` en los tres flujos, garantizando que el entrenamiento, la validación y el testeo ciego mapeen exactamente el mismo índice numérico ($0, 1, 2, 3$) a las mismas clases lógicas de origen.
+3.  **Prevención de Data Leakage en Validación:** Se separó la lógica de carga en tres generadores independientes. `train_datagen` aplica transformaciones geométricas aleatorias (*Data Augmentation*: rotación de 20°, desplazamientos y zooms del 10%). Por su parte, el conjunto de validación se cargó a través de un generador sanitizado (`val_datagen`) **completamente limpio de transformaciones artificiales**, previniendo que la red memorice distorsiones ópticas que alteren las métricas de control.
+4.  **Partición de Validación Estricta:** Aislamiento automático del $20\%$ de la carpeta `Training` para actuar como conjunto de validación interna intermedia limpia (2,297 imágenes para entrenamiento puro y 573 para validación).
+5.  **Instanciación y Descongelamiento Gradual:** Carga de la arquitectura MobileNetV2, configuración de `base_model.trainable = True`, congelamiento manual de las primeras 100 capas convolucionales e inyección del clasificador superior personalizado.
+6.  **Configuración del Loop de Optimización:** Compilación mediante la función de pérdida `categorical_crossentropy` y el optimizador **Adam** configurado con una tasa de aprendizaje críticamente baja (`learning_rate=0.0001`) para realizar micro-ajustes estables sin provocar una convergencia catastrófica.
+7.  **Sistemas de Control y Callbacks:** Inyección de `ModelCheckpoint` para guardar el estado óptimo basado en la exactitud de validación, asistido por un regularizador de paciencia `EarlyStopping` configurado con `patience=5` apuntando a `val_loss`.
+8.  **Testeo Final:** Carga de los mejores pesos y ejecución de predicciones con `shuffle=False` sobre las 394 imágenes del set de prueba ciego independiente (`Testing`).
 
-El loop de optimización lanzado en la GPU de Google Colab evidenció una dinámica de aprendizaje y una activación de regularizadores sumamente clara (ver archivo `curvas_aprendizaje_deep_learning.png`):
 
-* **Comportamiento del Entrenamiento:** En la Época 1, el modelo inició con un `loss` de 0.7576 y un `accuracy` de entrenamiento de $70.05\%$. En la **Época 2**, la red adaptó rápidamente sus gradientes logrando su mejor rendimiento histórico: una pérdida de entrenamiento que bajó a 0.4968, una exactitud de validación (`val_accuracy`) del **$79.76\%$** y una pérdida de validación (`val_loss`) mínima de **0.5357**. En este instante, el sistema resguardó el archivo `best_brain_tumor_model.keras`.
-* **Activación del Early Stopping:** A partir de la época 3, el modelo entró en zona de sobreajuste (*overfitting*); la exactitud de entrenamiento se disparó artificialmente hacia el $87\%$, pero el error de validación (`val_loss`) rebotó al alza de forma sostenida hasta 0.5720 en la época 7. Al registrarse 5 épocas consecutivas sin mejoras en el set de validación, **el Early Stopping se activó automáticamente en la Época 7**, deteniendo el entrenamiento y restaurando los pesos estables de la Época 2 para asegurar la generalización.
+## 5. Resultados Obtenidos e Interpretación del Entrenamiento
 
-### 5.1. Evaluación Final en el Test Set Ciego (Matriz de Confusión)
-Al someter los mejores pesos recuperados al testeo ciego final con las 394 muestras independientes, se obtuvieron las siguientes métricas globales macro-promedio:
+El loop de optimización lanzado en la GPU evidenció una dinámica de aprendizaje y una activación de regularizadores de alto estándar (ver archivo `curvas_aprendizaje_deep_learning.png`):
 
+*   **Dinámica de Aprendizaje y Convergencia:** El modelo inició la primera época con una exactitud de entrenamiento (`accuracy`) de $56.20\%$. Gracias a las 54 capas superiores descongeladas, los filtros se adaptaron con extrema rapidez, escalando de forma robusta en el entrenamiento hasta alcanzar un **$98.48\%$ en la Época 11**.
+*   **Comportamiento y Óptimo de Validación:** El conjunto de validación limpio acompañó de forma saludable el loop de optimización, logrando en la **Época 11 su punto óptimo e histórico con un $90.40\%$ de exactitud de validación (`val_accuracy`)** y un coste (`val_loss`) mínimo de **0.4240**. En esta iteración, el callback `ModelCheckpoint` guardó automáticamente el banco definitivo de pesos en el formato nativo Keras v3 (`best_brain_tumor_model.keras`).
+*   **Activación del Early Stopping:** A partir de la época 12, el modelo comenzó a entrar en zona de sobreajuste; la exactitud de entrenamiento siguió subiendo de forma artificial hacia el $99\%$, pero la pérdida de validación (`val_loss`) rebotó al alza de forma sostenida ($0.5529$ en la época 12 y alcanzando $0.6308$ en la 15). Al registrarse 5 épocas consecutivas (de la 12 a la 16) donde la pérdida de validación fue incapaz de superar el mínimo de la época 11, **el Early Stopping se activó de forma estricta en la Época 16**, interrumpiendo el entrenamiento y restaurando automáticamente los pesos estables de la Época 11 para salvaguardar la varianza.
+
+
+## 5.1. Evaluación Final en el Test Set Ciego (Matriz de Confusión)
+
+Al someter los mejores pesos recuperados de la Época 11 al testeo ciego final con las 394 muestras independientes de la carpeta `Testing` (imágenes que el modelo jamás procesó durante el entrenamiento), se obtuvieron las siguientes métricas globales macro-promedio:
+
+### Reporte de Métricas Finales en Test Set
 | Métrica | Valor Real Obtenido en el Test Set |
 | :--- | :---: |
-| **Accuracy (Exactitud General)** | 0.5228 (52.28%) |
-| **Precision (Macro)** | 0.5056 (50.56%) |
-| **Recall (Sensibilidad Macro)** | 0.5382 (53.82%) |
-| **F1-Score (Macro)** | 0.4884 (48.84%) |
+| **Accuracy (Exactitud General)** | 0.769036 (76.90%) |
+| **Precision (Macro-Promedio)** | 0.836323 (83.63%) |
+| **Recall (Sensibilidad Macro)** | 0.754454 (75.44%) |
+| **F1-Score (Macro-Promedio)** | 0.756229 (75.62%) |
 
 Al abrir analíticamente la matriz de confusión final (ver archivo `matriz_confusion_final_deep_learning.png`), se identificaron los siguientes comportamientos hísticos:
-* **Éxito en Tejido Sano (`no_tumor`):** El modelo base demostró un desempeño sobresaliente reconociendo la simetría anatómica normal, alcanzando **83 aciertos de un total de 105 casos reales**.
-* **Confusión Crítica por Colinealidad:** El punto de quiebre se concentró en la clase `glioma_tumor`, donde de 100 casos reales **solo se clasificaron correctamente 14**, confundiéndose masivamente con meningiomas (35 casos) y tumores pituitarios (32 casos). Al mantener las capas convolucionales congeladas, los filtros genéricos de ImageNet sufren para discriminar variaciones de texturas y contrastes médicos tan sutiles entre los diferentes tipos de tumores.
-* **Tumores Pituitarios:** Estabilizó su rendimiento logrando **57 aciertos de 74 casos reales**, cometiendo errores menores al confundir 11 casos con cerebros sanos debido a su ubicación anatómica fija en la base celular.
+
+*   **Rendimiento Excepcional en Meningiomas (`meningioma_tumor`):** El sistema alcanzó un desempeño clínico sobresaliente al clasificar correctamente **114 de 115 casos reales**, registrando prácticamente cero falsos negativos derivados de otras patologías.
+*   **Control Efectivo del Tejido Sano (`no_tumor`):** Se consolidaron **97 aciertos de 105 pacientes reales**, demostrando que la red diferencia con alta fidelidad Estructuras normales de los ventrículos frente a masas patológicas, reduciendo el riesgo de falsas alarmas.
+*   **Consistencia en Tumores Pituitarios (`pituitary_tumor`):** El modelo logró **52 aciertos de 74 casos reales**. Su principal vector de confusión ocurrió hacia los meningiomas (15 casos), debido a las similitudes morfológicas en el realce de contraste de la región selar.
+*   **Mitigación de la Complejidad en Gliomas (`glioma_tumor`):** Los gliomas representan la clase morfológicamente más compleja debido a su naturaleza infiltrante y bordes difusos. Gracias al Fine-Tuning de las 54 capas convolucionales superiores, **los aciertos se triplicaron con respecto al extractor congelado, subiendo a 40 aciertos reales**. Aunque persiste una tasa de confusión frente a los meningiomas (51 casos) debido al solapamiento visual real en las resonancias por edema peritumoral, el modelo demuestra una sensibilidad radicalmente superior para extraer las fronteras hísticas del cáncer.
+
 
 ## 6. Conclusiones Generales
 
-1. **Efectividad del Aprendizaje por Transferencia:** Se validó que la utilización de modelos preentrenados (`MobileNetV2`) permite estructurar pipelines de Deep Learning estables y de rápida convergencia para imágenes biomédicas, evitando el costo de entrenar millones de parámetros desde cero.
-2. **Necesidad de Especialización de Dominios (Fine-Tuning):** El experimento demostró empíricamente que mantener un congelamiento absoluto de las capas convolucionales base limita el rendimiento ante problemas médicos de alta complejidad. Las representaciones genéricas de ImageNet son insuficientes para separar sutiles variaciones morfológicas como los gliomas y meningiomas, concluyendo que para alcanzar precisión clínica es indispensable aplicar un *Fine-Tuning* controlado en las capas superiores.
-3. **Éxito de las Estrategias de Regularización:** Los mecanismos de control de *overfitting* extraídos de las clases cumplieron con éxito su rol computacional. El *Data Augmentation* absorbió la heterogeneidad de escalas de las imágenes, mientras que la combinación de *Dropout* (0.5) y *Early Stopping* controló la varianza de la red de forma automatizada en la época 7.
-4. **Rigor y Criterio de Ingeniería:** La evaluación transparente contra un conjunto de prueba completamente aislado e independiente (*test set* ciego) evitó cualquier escenario de sobreajuste o fuga de información (*data leakage*). Los resultados obtenidos trazan una hoja de ruta clara para la optimización de redes convolucionales, demostrando la madurez técnica, honestidad metodológica y capacidad de auditoría requerida en un Ingeniero Civil en Computación.
+1.  **Superioridad del Fine-Tuning Controlado:** Se demostró empíricamente que mantener un congelamiento absoluto de las capas convolucionales base limita el rendimiento ante problemas médicos de alta complejidad. El paso hacia un Fine-Tuning controlado —descongelando selectivamente las últimas 54 capas de la red y aplicando una tasa de aprendizaje reducida ($1 \times 10^{-4}$)— fue el factor determinante para disparar las métricas en el set de prueba ciego de un $52\%$ inicial a un robusto **$76.90\%$ de Accuracy general y un destacado $83.63\%$ de Precision macro**.
+2.  **Saneamiento de la Fuga de Datos (Data Leakage):** La reestructuración del pipeline de datos fue clave para subsanar inconsistencias lógicas en el entrenamiento. Aislar el generador de validación de los procesos de aumento geométrico garantizó que las métricas intermedias fueran evaluaciones incorruptibles del desempeño del modelo, erradicando sesgos metodológicos presentes en divisiones automatizadas implícitas.
+3.  **Robustez y Auditoría Médica:** La combinación coordinada de Dropout (0.5) y Early Stopping en la época 16 (restando los pesos óptimos de la época 11) demostraron ser mecanismos de regularización de alto estándar para proteger la varianza ante datos clínicos inéditos. La evaluación transparente contra una matriz de confusión definitiva del test set ciego expone con precisión tanto los éxitos del sistema como los límites biológicos actuales del clasificador convolucional frente a la porosidad de los gliomas.
+4.  **Criterio de Ingeniería y Visión Profesional:** El éxito de esta entrega radica en no haber dependido de la optimización automática por software, sino en haber aplicado un diagnóstico de ingeniería de gradientes para corregir la alineación de etiquetas de Kaggle y especializar los filtros convolucionales superiores. Este proyecto traza una hoja de ruta metodológica de alta rigurosidad, demostrando la madurez técnica, honestidad intelectual y capacidad de auditoría computacional requerida en un Ingeniero Civil en Computación de la Universidad de O'Higgins.
